@@ -181,7 +181,7 @@ All build artifacts are uniformly output to the `target/<target>/release/bundle/
 | `pnpm build:mac` | `target/universal-apple-darwin/release/bundle/macos/FujiSim.app` | `target/universal-apple-darwin/release/bundle/dmg/FujiSim_<version>_universal.dmg` |
 | `pnpm build:win` | `target/x86_64-pc-windows-msvc/release/FujiSim.exe` | `target/x86_64-pc-windows-msvc/release/bundle/msi/FujiSim_<version>_x64_en-US.msi`<br>`target/x86_64-pc-windows-msvc/release/bundle/nsis/FujiSim_<version>_x64-setup.exe` |
 
-> 💡 The `<version>` in the filename is taken from the `version` field in [tauri.conf.json](src-tauri/tauri.conf.json), currently `1.0.0`.
+> 💡 The `<version>` in the filename is taken from the `version` field in [tauri.conf.json](src-tauri/tauri.conf.json), currently `1.0.1`.
 
 ### Notes
 

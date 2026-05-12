@@ -2,7 +2,7 @@
   "name": "fujisim",
   "description": "A cross-platform desktop application for high-fidelity Fujifilm film simulation, built with Tauri 2, Rust, React 18, and TypeScript.",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",

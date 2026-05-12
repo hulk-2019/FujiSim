@@ -1,6 +1,6 @@
 [package]
 name = "fujisim"
-version = "1.0.0"
+version = "1.0.1"
 description = "High-fidelity Fujifilm film simulation desktop app"
 authors = ["FujiSim Team"]
 edition = "2021"

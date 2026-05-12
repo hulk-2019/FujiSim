@@ -167,7 +167,7 @@ pnpm build:mac
 | `pnpm build:mac` | `target/universal-apple-darwin/release/bundle/macos/FujiSim.app` | `target/universal-apple-darwin/release/bundle/dmg/FujiSim_<版本>_universal.dmg` |
 | `pnpm build:win` | `target/x86_64-pc-windows-msvc/release/FujiSim.exe` | `target/x86_64-pc-windows-msvc/release/bundle/msi/FujiSim_<版本>_x64_en-US.msi`<br>`target/x86_64-pc-windows-msvc/release/bundle/nsis/FujiSim_<版本>_x64-setup.exe` |
 
-> 💡 文件名里的 `<版本>` 取自 [tauri.conf.json](../src-tauri/tauri.conf.json) 中的 `version` 字段，当前是 `1.0.0`。
+> 💡 文件名里的 `<版本>` 取自 [tauri.conf.json](../src-tauri/tauri.conf.json) 中的 `version` 字段，当前是 `1.0.1`。
 
 ### 注意事项
 
