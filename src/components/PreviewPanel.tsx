@@ -91,7 +91,7 @@ export function PreviewPanel({ onExport }: { onExport: () => void }) {
           导出
         </Button>
       </div>
-      <div className="flex-1 relative overflow-hidden flex items-center justify-center p-4 bg-black/20">
+      <div className="flex-1 relative overflow-hidden flex items-center justify-center p-4 bg-zinc-950/20">
         {error ? (
           <div className="text-zinc-400 text-sm bg-zinc-900/80 px-4 py-2 rounded border border-zinc-800">
             {error}
@@ -113,12 +113,12 @@ export function PreviewPanel({ onExport }: { onExport: () => void }) {
               />
             )}
             {loading && (
-              <div className="absolute top-3 left-3 text-xs text-zinc-400 bg-black/60 px-2 py-1 rounded">
+              <div className="absolute top-3 left-3 text-xs text-zinc-400 bg-zinc-950/60 px-2 py-1 rounded">
                 渲染中...
               </div>
             )}
             {preview && (
-              <div className="absolute bottom-3 right-3 text-[10px] text-zinc-500 bg-black/60 px-2 py-1 rounded">
+              <div className="absolute bottom-3 right-3 text-[10px] text-zinc-500 bg-zinc-950/60 px-2 py-1 rounded">
                 {preview.width} × {preview.height} · {formatBytes(focused.file_size)}
               </div>
             )}

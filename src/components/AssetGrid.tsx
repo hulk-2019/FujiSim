@@ -46,7 +46,7 @@ export function AssetGrid() {
           onClick={() => (allSelected ? clearSelection() : selectAll())}
           className={cn(
             "flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-zinc-800/60",
-            (allSelected || partiallySelected) && "text-emerald-400",
+            (allSelected || partiallySelected) && "text-primary",
           )}
           title={allSelected ? "取消全选" : "全选当前列表"}
         >
@@ -54,13 +54,13 @@ export function AssetGrid() {
             className={cn(
               "w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0",
               allSelected
-                ? "bg-emerald-500 border-emerald-500"
+                ? "bg-primary border-primary"
                 : partiallySelected
-                  ? "bg-emerald-500/40 border-emerald-500"
+                  ? "bg-primary/40 border-primary"
                   : "border-zinc-600",
             )}
           >
-            {allSelected && <Check size={10} className="text-black" strokeWidth={3} />}
+            {allSelected && <Check size={10} className="text-primary-foreground" strokeWidth={3} />}
             {partiallySelected && <span className="w-1.5 h-0.5 bg-white rounded" />}
           </span>
           {allSelected ? "取消全选" : partiallySelected ? `已选 ${selectedIds.size}` : "全选"}
@@ -155,10 +155,10 @@ function Thumb({
       className={cn(
         "group relative rounded-md overflow-hidden bg-zinc-900/50 border cursor-pointer transition-all hover:border-zinc-700",
         focused ? "border-zinc-400 bg-zinc-800" : "border-zinc-800/80",
-        selected && "ring-2 ring-emerald-500 ring-offset-1 ring-offset-[#0a0a0a]",
+        selected && "ring-2 ring-primary ring-offset-1 ring-offset-zinc-950",
       )}
     >
-      <div className="aspect-[4/3] flex items-center justify-center bg-black/40">
+      <div className="aspect-[4/3] flex items-center justify-center bg-zinc-950/40">
         {src ? (
           <img
             src={src}
@@ -182,14 +182,14 @@ function Thumb({
           className={cn(
             "absolute top-1.5 right-1.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-opacity",
             selected
-              ? "bg-emerald-500 border-emerald-500 opacity-100"
-              : "bg-black/60 border-zinc-300 opacity-0 group-hover:opacity-100",
+              ? "bg-primary border-primary opacity-100"
+              : "bg-zinc-950/60 border-zinc-300 opacity-0 group-hover:opacity-100",
           )}
           title={selected ? "取消选中" : "加入选择"}
         >
-          {selected && <Check size={12} className="text-black" strokeWidth={3} />}
+          {selected && <Check size={12} className="text-primary-foreground" strokeWidth={3} />}
         </button>
-        <span className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-zinc-200 border border-white/10">
+        <span className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-zinc-950/60 text-zinc-200 border border-zinc-50/10">
           {asset.file_type ?? "?"}
         </span>
       </div>

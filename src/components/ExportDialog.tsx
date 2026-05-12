@@ -130,7 +130,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
                   max={100}
                   value={quality}
                   onChange={(e) => setQuality(Number(e.target.value))}
-                  className="w-full"
+                  className="w-full accent-primary"
                 />
               </Row>
             )}
@@ -217,6 +217,7 @@ export function ExportDialog({ open, onOpenChange }: ExportDialogProps) {
                   type="checkbox"
                   checked={stripGps}
                   onChange={(e) => setStripGps(e.target.checked)}
+                  className="accent-primary"
                 />
                 移除 GPS（MVP 仅作开关占位，完整 Exif 写回需未来加入）
               </label>

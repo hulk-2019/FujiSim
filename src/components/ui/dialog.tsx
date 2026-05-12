@@ -22,7 +22,7 @@ export const DialogContent = React.forwardRef<
       {...props}
     >
       {children}
-      <DialogPrimitive.Close className="absolute right-3 top-3 text-zinc-400 hover:text-white">
+      <DialogPrimitive.Close className="absolute right-3 top-3 text-zinc-400 hover:text-zinc-50">
         <X className="h-4 w-4" />
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
@@ -31,7 +31,7 @@ export const DialogContent = React.forwardRef<
 DialogContent.displayName = "DialogContent";
 
 export const DialogTitle = ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-  <h3 className={cn("text-base font-semibold text-white", className)} {...props} />
+  <h3 className={cn("text-base font-semibold text-zinc-50", className)} {...props} />
 );
 export const DialogDescription = ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
   <p className={cn("text-sm text-zinc-400 mt-1", className)} {...props} />

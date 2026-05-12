@@ -21,7 +21,7 @@ export default function App() {
   }, [refreshAssets, refreshFacets, refreshPresets, refreshUserLuts]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#0a0a0a] text-zinc-200">
+    <div className="h-full w-full flex flex-col bg-zinc-950 text-zinc-200">
       {/* 顶部操作区 */}
       <div className="flex-shrink-0 border-b border-zinc-800/60 bg-zinc-950/50">
         <Sidebar />
@@ -29,12 +29,12 @@ export default function App() {
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* 文件列表 */}
-        <div className="w-[360px] flex-shrink-0 flex flex-col bg-[#0a0a0a] border-r border-zinc-800/60 overflow-hidden">
+        <div className="w-[360px] flex-shrink-0 flex flex-col bg-zinc-950 border-r border-zinc-800/60 overflow-hidden">
           <AssetGrid />
         </div>
         
         {/* 画布 */}
-        <div className="flex-1 flex flex-col min-w-0 bg-[#0a0a0a]">
+        <div className="flex-1 flex flex-col min-w-0 bg-zinc-950">
           <PreviewPanel onExport={() => setExportOpen(true)} />
         </div>
         

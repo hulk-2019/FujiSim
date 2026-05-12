@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { FolderOpen, Trash2, Pencil, FolderPlus, Plus, Search, RefreshCw, Files, ChevronDown } from "lucide-react";
+import { FolderOpen, Trash2, Pencil, FolderPlus, Plus, Search, RefreshCw, Files, ChevronDown, Sun, Moon } from "lucide-react";
 import { api, type BatchProgress } from "@/api";
 import type { Album } from "@/types";
 import { useStore } from "@/store";
@@ -33,6 +33,8 @@ export function Sidebar() {
   const clearSelection = useStore((s) => s.clearSelection);
   const progress = useStore((s) => s.progress);
   const setProgress = useStore((s) => s.setProgress);
+  const theme = useStore((s) => s.theme);
+  const toggleTheme = useStore((s) => s.toggleTheme);
 
   const [albums, setAlbums] = useState<Album[]>([]);
   const [newAlbumOpen, setNewAlbumOpen] = useState(false);
@@ -256,6 +258,9 @@ export function Sidebar() {
 
       {/* 批量操作与进度 */}
       <div className="ml-auto flex items-center gap-2">
+        <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0" onClick={toggleTheme} title="切换主题">
+          {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
+        </Button>
         {progress && (
           <div className="text-xs text-zinc-500 flex items-center gap-2 mr-4 bg-zinc-900/50 px-2 py-1 rounded whitespace-nowrap">
             <span>导出 #{progress.task_id}: {progress.completed + progress.failed}/{progress.total}</span>

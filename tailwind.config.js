@@ -5,14 +5,27 @@ export default {
   theme: {
     extend: {
       colors: {
+        zinc: {
+          50: 'rgb(var(--zinc-50) / <alpha-value>)',
+          100: 'rgb(var(--zinc-100) / <alpha-value>)',
+          200: 'rgb(var(--zinc-200) / <alpha-value>)',
+          300: 'rgb(var(--zinc-300) / <alpha-value>)',
+          400: 'rgb(var(--zinc-400) / <alpha-value>)',
+          500: 'rgb(var(--zinc-500) / <alpha-value>)',
+          600: 'rgb(var(--zinc-600) / <alpha-value>)',
+          700: 'rgb(var(--zinc-700) / <alpha-value>)',
+          800: 'rgb(var(--zinc-800) / <alpha-value>)',
+          900: 'rgb(var(--zinc-900) / <alpha-value>)',
+          950: 'rgb(var(--zinc-950) / <alpha-value>)',
+        },
         border: "hsl(240 4% 16%)",
         input: "hsl(240 4% 16%)",
         ring: "hsl(240 5% 65%)",
         background: "hsl(240 10% 4%)",
         foreground: "hsl(0 0% 98%)",
         primary: {
-          DEFAULT: "hsl(0 0% 98%)",
-          foreground: "hsl(240 6% 10%)",
+          DEFAULT: "rgb(var(--primary) / <alpha-value>)",
+          foreground: "rgb(var(--primary-foreground) / <alpha-value>)",
         },
         secondary: {
           DEFAULT: "hsl(240 4% 16%)",

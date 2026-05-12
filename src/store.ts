@@ -38,6 +38,10 @@ export const DEFAULT_FILTER: FilterSettings = {
  *   减少不必要的重渲染。
  */
 type AppState = {
+  // ===== UI 状态 =====
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+
   // ===== 资产列表与查询 =====
   assets: Asset[];
   loading: boolean;
@@ -89,6 +93,18 @@ type AppState = {
 };
 
 export const useStore = create<AppState>((set, get) => ({
+  theme: (localStorage.getItem("fujisim-theme") as "light" | "dark") || "light",
+  toggleTheme: () => {
+    const newTheme = get().theme === "light" ? "dark" : "light";
+    localStorage.setItem("fujisim-theme", newTheme);
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    set({ theme: newTheme });
+  },
+
   assets: [],
   loading: false,
   query: { sort_by: "date_taken", sort_dir: "desc", limit: 500 },

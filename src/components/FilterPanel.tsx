@@ -288,7 +288,7 @@ export function FilterPanel() {
 
           <div className="flex gap-2 pt-4 border-t border-zinc-800/60 mt-4">
             <Button size="sm" variant="outline" onClick={resetFilter} className="flex-1 border-zinc-800 hover:bg-zinc-800">重置</Button>
-            <Button size="sm" variant="default" onClick={() => setSaveOpen(true)} className="flex-1 bg-zinc-200 text-zinc-900 hover:bg-white">
+            <Button size="sm" variant="default" onClick={() => setSaveOpen(true)} className="flex-1">
               <Save size={12} /> 存为预设
             </Button>
           </div>
