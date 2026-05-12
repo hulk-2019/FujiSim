@@ -22,7 +22,7 @@ impl ToneCurve {
     /// 构造一条复合曲线，由"对比 + 阴影抬升 + 高光压缩"三段叠加而成。
     ///
     /// 参数：
-    /// - `highlight`：高光抑制，范围 -1..1。正值降低高光（保留高光细节），负值进一步提亮（容易溢出）。
+    /// - `highlight`：高光色调，范围 -1..1。正值提亮高光（Hard），负值压制高光（Soft）。
     /// - `shadow`：阴影抬升，范围 -1..1。正值提亮阴影区，负值压暗阴影。
     /// - `contrast`：S 形 / 反 S 形对比，范围 -1..1。正值更硬朗、负值更柔和。
     pub fn build(highlight: f32, shadow: f32, contrast: f32) -> Self {
@@ -45,7 +45,7 @@ impl ToneCurve {
 
             // 高光掩膜：x^2 在亮部权重最高，对高光的抑制不会"误伤"中间调
             let highlight_mask = x.powf(2.0);
-            y += highlight * (-0.35) * highlight_mask;
+            y += highlight * 0.35 * highlight_mask;
 
             *slot = y.clamp(0.0, 1.0);
         }

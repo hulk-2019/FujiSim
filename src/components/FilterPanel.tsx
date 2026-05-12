@@ -278,11 +278,11 @@ export function FilterPanel() {
             onChange={(v) => setFilter({ sharpness: v })}
           />
           <SliderRow
-            label="WB Shift R" value={filter.wb_shift_r} min={-9} max={9} step={1} display={v => v.toFixed(0)}
+            label="白平衡偏移 R" value={filter.wb_shift_r} min={-9} max={9} step={1} display={v => v.toFixed(0)}
             onChange={(v) => setFilter({ wb_shift_r: v })}
           />
           <SliderRow
-            label="WB Shift B" value={filter.wb_shift_b} min={-9} max={9} step={1} display={v => v.toFixed(0)}
+            label="白平衡偏移 B" value={filter.wb_shift_b} min={-9} max={9} step={1} display={v => v.toFixed(0)}
             onChange={(v) => setFilter({ wb_shift_b: v })}
           />
 
