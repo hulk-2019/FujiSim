@@ -8,7 +8,7 @@
 //! - **同名安全**：输出文件已存在时自动追加 `_1` `_2` 后缀，**绝不覆盖**用户文件。
 
 use crate::error::{AppError, Result};
-use crate::processing::{self, FilterSettings};
+use crate::processing::{self, lut::Lut3D, FilterSettings};
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont};
 use image::{ImageBuffer, Rgb, RgbImage};
 use serde::{Deserialize, Serialize};
@@ -106,14 +106,17 @@ pub fn resolve_destination_dir(src: &Path, dest: &Destination) -> Result<PathBuf
 ///
 /// 流程：解码 → 色彩流水线（全分辨率）→ Resize（可选）→ 16-bit 转 8-bit → 水印 → 编码落盘。
 /// 文件名规则：`<原名>_<胶片预设名>.<ext>`，同名时追加 `_1` `_2` 后缀。
+///
+/// `lut` 由调用方传入（可为 `None`），避免在批量导出时每张图都重新读盘解析。
 pub fn export_one(
     src_path: &Path,
     out_dir: &Path,
     filter: &FilterSettings,
     export: &ExportSettings,
+    lut: Option<&Lut3D>,
 ) -> Result<PathBuf> {
     let src = processing::load_image_rgb16(src_path)?;
-    let processed = processing::process_image(&src, filter)?;
+    let processed = processing::process_image(&src, filter, lut)?;
     let final_image = match &export.resize {
         Some(ResizeSpec::LongEdge(le)) => {
             let (w, h) = processed.dimensions();

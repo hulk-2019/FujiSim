@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { FolderOpen, Trash2, Pencil, Move, Plus, Search, RefreshCw, Files, ChevronDown } from "lucide-react";
+import { FolderOpen, Trash2, Pencil, FolderPlus, Plus, Search, RefreshCw, Files, ChevronDown } from "lucide-react";
 import { api, type BatchProgress } from "@/api";
 import type { Album } from "@/types";
 import { useStore } from "@/store";
@@ -40,7 +40,7 @@ export function Sidebar() {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameTemplate, setRenameTemplate] = useState("{date}_{camera}_{name}");
   const [moveOpen, setMoveOpen] = useState(false);
-  const [moveTarget, setMoveTarget] = useState("");
+  const [moveTargetAlbum, setMoveTargetAlbum] = useState<string>("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
 
@@ -49,11 +49,23 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
+    // 用 cancelled 标志兜底：listen 的 Promise 可能在组件卸载之后才 resolve，
+    // 此时 unlisten 已经不会被 effect cleanup 调用，会导致事件回调持续触发不存在的 setProgress。
+    let cancelled = false;
     let unlisten: UnlistenFn | undefined;
     listen<BatchProgress>("export:progress", (e) => {
       setProgress(e.payload);
-    }).then((u) => (unlisten = u));
-    return () => unlisten?.();
+    }).then((u) => {
+      if (cancelled) {
+        u();
+      } else {
+        unlisten = u;
+      }
+    });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, [setProgress]);
 
   const ids = useMemo(() => Array.from(selectedIds), [selectedIds]);
@@ -107,9 +119,15 @@ export function Sidebar() {
   }
 
   async function doMove() {
-    if (!moveTarget.trim() || ids.length === 0) return;
-    await api.moveAssets(ids, moveTarget.trim());
+    const albumId = Number(moveTargetAlbum);
+    if (!albumId || ids.length === 0) return;
+    await api.albumAdd(albumId, ids);
+    // 若当前正在某个相册视图下，把素材从原相册移除，实现真正的"移动"语义
+    if (query.album_id != null && query.album_id !== albumId) {
+      await api.albumRemove(query.album_id, ids);
+    }
     setMoveOpen(false);
+    setMoveTargetAlbum("");
     await refreshAssets();
   }
 
@@ -119,13 +137,6 @@ export function Sidebar() {
     setDeleteOpen(false);
     clearSelection();
     await refreshAssets();
-  }
-
-  async function pickMoveTarget() {
-    const selected = await openDialog({ directory: true, multiple: false });
-    if (selected && typeof selected === "string") {
-      setMoveTarget(selected);
-    }
   }
 
   return (
@@ -257,8 +268,8 @@ export function Sidebar() {
         <Button size="icon" variant="outline" className="h-8 w-8 flex-shrink-0" disabled={ids.length === 0} onClick={() => setRenameOpen(true)} title="批量重命名">
           <Pencil size={14} />
         </Button>
-        <Button size="icon" variant="outline" className="h-8 w-8 flex-shrink-0" disabled={ids.length === 0} onClick={() => setMoveOpen(true)} title="移动">
-          <Move size={14} />
+        <Button size="icon" variant="outline" className="h-8 w-8 flex-shrink-0" disabled={ids.length === 0} onClick={() => setMoveOpen(true)} title="加入相册">
+          <FolderPlus size={14} />
         </Button>
         <Button size="icon" variant="destructive" className="h-8 w-8 flex-shrink-0" disabled={ids.length === 0} onClick={() => setDeleteOpen(true)} title="删除">
           <Trash2 size={14} />
@@ -302,17 +313,33 @@ export function Sidebar() {
 
       <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
         <DialogContent>
-          <DialogTitle>移动到目录</DialogTitle>
-          <DialogDescription>选中文件将被物理移动，数据库路径同步更新。</DialogDescription>
-          <div className="mt-3 flex gap-2">
-            <Input value={moveTarget} onChange={(e) => setMoveTarget(e.target.value)} placeholder="/path/to/dir" />
-            <Button variant="secondary" onClick={pickMoveTarget} className="whitespace-nowrap flex-shrink-0">
-              选择...
-            </Button>
+          <DialogTitle>加入相册</DialogTitle>
+          <DialogDescription>
+            把当前选中的 {ids.length} 张资产加入指定相册（虚拟分组，不会移动物理文件）。
+          </DialogDescription>
+          <div className="mt-3">
+            {albums.length === 0 ? (
+              <p className="text-xs text-zinc-500">
+                还没有相册。请先点顶部的"新建相册"按钮创建一个。
+              </p>
+            ) : (
+              <Select value={moveTargetAlbum} onValueChange={setMoveTargetAlbum}>
+                <SelectTrigger>
+                  <SelectValue placeholder="选择目标相册" />
+                </SelectTrigger>
+                <SelectContent>
+                  {albums.map((a) => (
+                    <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setMoveOpen(false)}>取消</Button>
-            <Button onClick={doMove}>移动</Button>
+            <Button onClick={doMove} disabled={!moveTargetAlbum || albums.length === 0}>
+              加入
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

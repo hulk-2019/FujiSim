@@ -40,10 +40,12 @@ FujiSim is built with **Tauri 2** (Rust backend + React 18 frontend), keeping th
 - **High-Performance View**: Grid view (lazy-loaded thumbnails) combined with detailed information panel.
 - **Multi-Dimensional Filtering**: Filter assets by Camera, Rating, Sorting, Album, and Full-text Search.
 - **Convenient Organization**: Star rating (0-5), virtual album creation, categorization, and deletion.
+- **Batch Selection UX**: Each thumbnail exposes a hover-revealed checkbox; the list header offers a single-click select-all / deselect-all toggle with tri-state indicator (none / partial / all). Cmd/Ctrl-click and Shift-range selection are still supported.
+- **Auto-Healed Selection**: After delete/move/filter operations, `selectedIds` is automatically narrowed to the new list and `focusedId` is restored to the next valid asset (preferring a still-selected one), so the canvas never goes blank.
 
 ### 🛠️ F2 File Operations
 - **Batch Rename**: Supports flexible placeholder variables (e.g., `{date}_{camera}_{name}`).
-- **Batch Move**: Physically moves selected files to a specified directory and synchronizes database paths automatically.
+- **Add to Album (formerly "Move")**: Select multiple assets and add them to a target album from a dropdown of existing albums. When triggered while viewing a specific album, the assets are also removed from the source album, achieving true cross-album move semantics. Physical files are never touched.
 - **Safe Deletion**: Provides two deletion modes: "Remove Record Only" and "Move to System Trash".
 
 ### 🎨 F3 Core Color Engine (Fujifilm Simulation)
@@ -60,12 +62,18 @@ FujiSim is built with **Tauri 2** (Rust backend + React 18 frontend), keeping th
 - **Real-time Preview**: 80ms debounce response, long edge 1280 hardware-level scaling, supports A/B view comparison (hold button to instantly view original image).
 
 ### 📤 F4 Batch Generation & Export
-- **Extreme Concurrency**: Background asynchronous multi-threaded batch export, based on `rayon` underlying parallel optimization.
+- **Bounded Concurrency**: Background asynchronous batch export, internally using a dedicated `rayon::ThreadPool` capped at **2 concurrent images**. Each image still uses pixel-level parallelism inside, but the outer cap keeps peak memory predictable on large RAWs (~1.4 GB peak on 6000×4000 instead of CPU-cores × image-size).
 - **Multi-Format Support**: Export as JPEG (adjustable quality), PNG, TIFF, WebP.
 - **Export Management**: Choose to export to a subfolder of the original directory or a global custom path.
 - **Flexible Scaling**: Supports keeping original size, scaling proportionally by long edge, or scaling by percentage.
 - **Digital Watermark**: Text watermark (supports custom position, font size, opacity, automatically loads system fonts).
 - **Real-time Tracking**: Real-time export progress pushed to the frontend UI via Tauri Events.
+
+### 🧹 F5 Data & Lifecycle Hygiene
+- **In-Memory LUT Cache**: Each `.cube` LUT is parsed once and held in an `Arc`-shared in-process cache, so slider drags and batch exports never re-read the file from disk. Deleting a user LUT also evicts the cached copy.
+- **Streaming Memory Footprint**: The preview pipeline drops the source / resized / processed buffers as soon as the next stage finishes encoding, so RAM does not balloon while rendering one big image.
+- **Event Listener Safety**: Frontend `listen()` registrations use a `cancelled` flag to handle the case where the component unmounts before the Promise resolves — no leaked subscriptions, no callbacks firing into unmounted React trees.
+- **`reset_app_data` IPC**: A single command closes the SQLite pool (releasing `library.db-wal` / `-shm` handles), clears the in-memory LUT cache, and recursively removes the entire `Application Support/FujiSim/` directory. Use it for an in-app "reset" button or call it before uninstalling to guarantee zero residual files.
 
 ---
 
@@ -91,8 +99,8 @@ FujiSim is built with **Tauri 2** (Rust backend + React 18 frontend), keeping th
 ├── src-tauri/                     # Rust Backend Engine
 │   ├── src/
 │   │   ├── lib.rs                 # Tauri Builder entry
-│   │   ├── ipc.rs                 # 27 #[tauri::command] API interfaces
-│   │   ├── state.rs               # AppState and built-in preset initialization
+│   │   ├── ipc.rs                 # 28 #[tauri::command] API interfaces
+│   │   ├── state.rs               # AppState (DB pool, LUT cache, export ThreadPool) + built-in preset seeding
 │   │   ├── error.rs               # Custom Error layer
 │   │   ├── db/                    # SQLite database persistence layer (Connection Pool + Schema)
 │   │   │   └── user_luts.rs       # User 3D LUT library CRUD
@@ -206,6 +214,8 @@ The backend `src-tauri/src/processing/raw.rs` has already reserved the `decode_r
 ## 💎 Technical Highlights
 
 - ⚡️ **Full-link 16-bit Precision**: Decoding → Curves → Color Mapping → Grain Processing utilizes `f32` high-precision floating-point calculation throughout, only converting to `u16/u8` at the final saving step, maximally avoiding color banding.
-- ⚡️ **Extreme rayon Parallel Processing**: Not only adopting single-image multi-threaded color pipeline but also implementing dual-level parallel optimization for batch export, squeezing multi-core CPU performance.
+- ⚡️ **Bounded rayon Parallelism**: A dedicated 2-thread `rayon::ThreadPool` for batch export keeps peak memory predictable on large RAWs while the per-image pixel-level parallelism still saturates the CPU.
 - ⚡️ **Debounced Real-time Rendering**: `80ms` input merging debounce applied in frontend when dragging sliders, perfectly avoiding UI stuttering and preventing backend overload.
+- ⚡️ **Process-Wide LUT Cache**: Parsed `.cube` LUTs are held behind an `Arc` and reused across previews and batch exports — slider drags and 1000-image exports incur exactly one disk read per LUT.
 - ⚡️ **Zero External C/C++ Dependencies**: Pure Rust implementation (MVP phase), compile after installation, run after compilation, bid farewell to tedious environment configuration.
+- ⚡️ **Clean Uninstall Path**: The `reset_app_data` command closes the DB pool, clears in-memory caches, and removes the entire data directory — perfect for an in-app reset or to wrap into an uninstaller script.

@@ -88,6 +88,7 @@ pub fn run() {
             ipc::list_recent_tasks,
             ipc::get_task,
             ipc::list_fuji_simulations,
+            ipc::reset_app_data,
         ])
         .run(tauri::generate_context!())
         .expect("FujiSim 运行时启动失败");

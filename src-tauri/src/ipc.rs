@@ -16,12 +16,32 @@ use crate::processing::lut::Lut3D;
 use crate::processing::{self, FilterSettings};
 use crate::state::SharedState;
 use base64::{engine::general_purpose, Engine as _};
-use image::ImageBuffer;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::Arc;
 use tauri::{Emitter, State};
+
+/// 从 `state.lut_cache` 取出指定路径的 LUT；不存在时加载并缓存。
+///
+/// 解析失败会向上传播错误。空路径直接返回 `Ok(None)`，调用方据此跳过 LUT 步骤。
+fn cached_lut(state: &SharedState, path: Option<&Path>) -> Result<Option<Arc<Lut3D>>> {
+    let path = match path {
+        Some(p) if !p.as_os_str().is_empty() => p,
+        _ => return Ok(None),
+    };
+    let key = path.to_path_buf();
+    {
+        let cache = state.lut_cache.lock().expect("lut_cache poisoned");
+        if let Some(lut) = cache.get(&key) {
+            return Ok(Some(lut.clone()));
+        }
+    }
+    let lut = Arc::new(Lut3D::load_cube(path)?);
+    let mut cache = state.lut_cache.lock().expect("lut_cache poisoned");
+    Ok(Some(cache.entry(key).or_insert(lut).clone()))
+}
 
 /// 一次目录导入的统计回执。
 #[derive(Debug, Serialize, Clone)]
@@ -267,24 +287,38 @@ pub async fn get_preview(
     let path = PathBuf::from(&asset.file_path);
     let max_edge = max_edge.unwrap_or(1280);
     let settings = settings.unwrap_or_default();
-    tokio::task::spawn_blocking(move || render_preview(&path, &settings, max_edge))
+    // 在阻塞任务前先把 LUT 准备好，复用 state 上的内存缓存
+    let lut = cached_lut(&state, settings.lut_file_path.as_deref())?;
+    tokio::task::spawn_blocking(move || render_preview(&path, &settings, max_edge, lut.as_deref()))
         .await
         .map_err(|e| AppError::other(e.to_string()))?
 }
 
-fn render_preview(path: &Path, settings: &FilterSettings, max_edge: u32) -> Result<PreviewResult> {
-    let src = processing::load_image_rgb16(path)?;
-    let (w, h) = src.dimensions();
-    let scale = (max_edge as f32 / w.max(h) as f32).min(1.0);
-    let resized: ImageBuffer<image::Rgb<u16>, Vec<u16>> = if scale < 1.0 {
-        let nw = (w as f32 * scale).round().max(1.0) as u32;
-        let nh = (h as f32 * scale).round().max(1.0) as u32;
-        image::imageops::resize(&src, nw, nh, image::imageops::FilterType::Triangle)
-    } else {
-        src
+fn render_preview(
+    path: &Path,
+    settings: &FilterSettings,
+    max_edge: u32,
+    lut: Option<&Lut3D>,
+) -> Result<PreviewResult> {
+    // 先下采样，源图缓冲尽快释放
+    let resized = {
+        let src = processing::load_image_rgb16(path)?;
+        let (w, h) = src.dimensions();
+        let scale = (max_edge as f32 / w.max(h) as f32).min(1.0);
+        if scale < 1.0 {
+            let nw = (w as f32 * scale).round().max(1.0) as u32;
+            let nh = (h as f32 * scale).round().max(1.0) as u32;
+            image::imageops::resize(&src, nw, nh, image::imageops::FilterType::Triangle)
+        } else {
+            src
+        }
     };
-    let processed = processing::process_image(&resized, settings)?;
-    let mut rgb8 = image::RgbImage::new(processed.width(), processed.height());
+
+    let processed = processing::process_image(&resized, settings, lut)?;
+    drop(resized);
+
+    let (pw, ph) = (processed.width(), processed.height());
+    let mut rgb8 = image::RgbImage::new(pw, ph);
     for (x, y, px) in processed.enumerate_pixels() {
         rgb8.put_pixel(
             x,
@@ -296,15 +330,18 @@ fn render_preview(path: &Path, settings: &FilterSettings, max_edge: u32) -> Resu
             ]),
         );
     }
+    drop(processed);
+
     let mut buf = std::io::Cursor::new(Vec::new());
     let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, 88);
     rgb8.write_with_encoder(encoder)?;
+    drop(rgb8);
     let data = general_purpose::STANDARD.encode(buf.get_ref());
     Ok(PreviewResult {
         mime: "image/jpeg".into(),
         data,
-        width: rgb8.width(),
-        height: rgb8.height(),
+        width: pw,
+        height: ph,
     })
 }
 
@@ -338,9 +375,11 @@ pub struct BatchProgress {
 /// 单张资产的进度/错误通过 Tauri Events 推送，前端 listen 即可。
 ///
 /// 并发模型：
-/// - 内层用 rayon `par_iter` 跑文件并行处理（CPU 密集）；
+/// - 内层用 `state.export_pool`（rayon 2 线程）跑文件并行处理，
+///   避免默认线程池（= CPU 核心数）下大图同时进入流水线导致内存溢出；
 /// - 数据库写入用 `tokio::runtime::Handle::current().block_on(...)` 桥接，
-///   因为 rayon 线程不能直接 await。
+///   因为 rayon 线程不能直接 await；
+/// - LUT 走 `cached_lut` 复用解析结果，整批只解析一次。
 #[tauri::command]
 pub async fn start_batch_export(
     state: State<'_, SharedState>,
@@ -353,13 +392,17 @@ pub async fn start_batch_export(
         tasks::create(&state.pool, request.asset_ids.len() as i64, &export_json, &filter_json)
             .await?;
 
-    let pool = state.pool.clone();
+    // 整批共用一份 LUT，避免每张图都重新读盘/解析
+    let lut = cached_lut(&state, request.filter.lut_file_path.as_deref())?;
+
+    let state_inner: SharedState = state.inner().clone();
     let app2 = app.clone();
     let asset_ids = request.asset_ids.clone();
     let filter = request.filter.clone();
     let export = request.export.clone();
 
     tokio::task::spawn_blocking(move || {
+        let pool = state_inner.pool.clone();
         let mut assets_list: Vec<(i64, PathBuf)> = Vec::new();
         let rt = tokio::runtime::Handle::current();
         for id in &asset_ids {
@@ -373,61 +416,72 @@ pub async fn start_batch_export(
         let completed = AtomicI64::new(0);
         let failed = AtomicI64::new(0);
 
-        assets_list.par_iter().for_each(|(asset_id, src_path)| {
-            let dest_res = export::resolve_destination_dir(src_path, &export.destination);
-            let result: Result<PathBuf> = match dest_res {
-                Ok(dest) => export::export_one(src_path, &dest, &filter, &export),
-                Err(e) => Err(e),
-            };
-            match &result {
-                Ok(out) => {
-                    let _ = rt.block_on(crate::db::tasks::record_generation(
-                        &pool,
-                        task_id,
-                        *asset_id,
-                        Some(out.to_string_lossy().as_ref()),
-                        "Success",
-                        None,
-                    ));
-                    let _ = rt.block_on(crate::db::tasks::bump_progress(&pool, task_id, true));
-                    completed.fetch_add(1, Ordering::SeqCst);
-                    let progress = BatchProgress {
-                        task_id,
-                        total,
-                        completed: completed.load(Ordering::SeqCst),
-                        failed: failed.load(Ordering::SeqCst),
-                        last_asset_id: Some(*asset_id),
-                        last_output: Some(out.to_string_lossy().to_string()),
-                        last_error: None,
-                        done: false,
-                    };
-                    let _ = app2.emit("export:progress", &progress);
+        // 关键：用 state.export_pool（线程数 = 2）而不是全局 rayon 池。
+        // install 让闭包内所有 par_iter 都跑在受限线程池里，
+        // 进而把"并发处理中的大图数量"硬卡在 2，内存峰值可预测。
+        state_inner.export_pool.install(|| {
+            assets_list.par_iter().for_each(|(asset_id, src_path)| {
+                let dest_res = export::resolve_destination_dir(src_path, &export.destination);
+                let result: Result<PathBuf> = match dest_res {
+                    Ok(dest) => export::export_one(
+                        src_path,
+                        &dest,
+                        &filter,
+                        &export,
+                        lut.as_deref(),
+                    ),
+                    Err(e) => Err(e),
+                };
+                match &result {
+                    Ok(out) => {
+                        let _ = rt.block_on(crate::db::tasks::record_generation(
+                            &pool,
+                            task_id,
+                            *asset_id,
+                            Some(out.to_string_lossy().as_ref()),
+                            "Success",
+                            None,
+                        ));
+                        let _ = rt.block_on(crate::db::tasks::bump_progress(&pool, task_id, true));
+                        completed.fetch_add(1, Ordering::SeqCst);
+                        let progress = BatchProgress {
+                            task_id,
+                            total,
+                            completed: completed.load(Ordering::SeqCst),
+                            failed: failed.load(Ordering::SeqCst),
+                            last_asset_id: Some(*asset_id),
+                            last_output: Some(out.to_string_lossy().to_string()),
+                            last_error: None,
+                            done: false,
+                        };
+                        let _ = app2.emit("export:progress", &progress);
+                    }
+                    Err(e) => {
+                        let msg = e.to_string();
+                        let _ = rt.block_on(crate::db::tasks::record_generation(
+                            &pool,
+                            task_id,
+                            *asset_id,
+                            None,
+                            "Error",
+                            Some(&msg),
+                        ));
+                        let _ = rt.block_on(crate::db::tasks::bump_progress(&pool, task_id, false));
+                        failed.fetch_add(1, Ordering::SeqCst);
+                        let progress = BatchProgress {
+                            task_id,
+                            total,
+                            completed: completed.load(Ordering::SeqCst),
+                            failed: failed.load(Ordering::SeqCst),
+                            last_asset_id: Some(*asset_id),
+                            last_output: None,
+                            last_error: Some(msg),
+                            done: false,
+                        };
+                        let _ = app2.emit("export:progress", &progress);
+                    }
                 }
-                Err(e) => {
-                    let msg = e.to_string();
-                    let _ = rt.block_on(crate::db::tasks::record_generation(
-                        &pool,
-                        task_id,
-                        *asset_id,
-                        None,
-                        "Error",
-                        Some(&msg),
-                    ));
-                    let _ = rt.block_on(crate::db::tasks::bump_progress(&pool, task_id, false));
-                    failed.fetch_add(1, Ordering::SeqCst);
-                    let progress = BatchProgress {
-                        task_id,
-                        total,
-                        completed: completed.load(Ordering::SeqCst),
-                        failed: failed.load(Ordering::SeqCst),
-                        last_asset_id: Some(*asset_id),
-                        last_output: None,
-                        last_error: Some(msg),
-                        done: false,
-                    };
-                    let _ = app2.emit("export:progress", &progress);
-                }
-            }
+            });
         });
 
         let _ = rt.block_on(crate::db::tasks::finish(&pool, task_id));
@@ -625,6 +679,10 @@ pub async fn list_user_luts(state: State<'_, SharedState>) -> Result<Vec<user_lu
 pub async fn delete_user_lut(state: State<'_, SharedState>, id: i64) -> Result<()> {
     if let Some(path) = user_luts::delete(&state.pool, id).await? {
         let p = PathBuf::from(&path);
+        // 同步把内存里缓存的 Lut3D 也清掉，避免被释放的 LUT 仍占着堆
+        if let Ok(mut cache) = state.lut_cache.lock() {
+            cache.remove(&p);
+        }
         // 容忍文件已经手动删除：只有"非 NotFound" 的 IO 错误才向上抛
         if let Err(e) = std::fs::remove_file(&p) {
             if e.kind() != std::io::ErrorKind::NotFound {
@@ -662,4 +720,27 @@ fn unique_lut_dest(dir: &Path, stem: &str) -> Result<PathBuf> {
         }
     }
     Err(AppError::other("too many lut files with the same name"))
+}
+
+/// 清除所有应用数据（数据库 + LUT 副本 + 缩略图缓存），并清空内存 LUT 缓存。
+///
+/// 用途：
+/// 1. 用户在设置里主动"重置应用"；
+/// 2. 卸载前手动调用，确保不留残留文件。
+///
+/// 注意：此操作不可逆，调用方（前端）应在执行前弹出二次确认对话框。
+/// 操作完成后应用需要重启才能正常使用（连接池已关闭）。
+#[tauri::command]
+pub async fn reset_app_data(state: State<'_, SharedState>) -> Result<()> {
+    // 先清内存缓存，避免后续操作触发 LUT 重新加载
+    if let Ok(mut cache) = state.lut_cache.lock() {
+        cache.clear();
+    }
+    // 关闭连接池，确保 SQLite 文件句柄释放（WAL 文件也会随之关闭）
+    state.pool.close().await;
+    // 删除整个数据目录（包含 library.db / library.db-wal / library.db-shm / luts/ / thumbnails/）
+    if state.data_dir.exists() {
+        std::fs::remove_dir_all(&state.data_dir)?;
+    }
+    Ok(())
 }

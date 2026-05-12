@@ -112,15 +112,35 @@ export const useStore = create<AppState>((set, get) => ({
     set({ loading: true });
     try {
       const list = await api.listAssets(get().query);
-      set({ assets: list, loading: false });
-      // 保持 focusedId 有效：若当前聚焦的资产已被筛掉，切到首张；
-      // 若之前没有聚焦且新列表非空，默认聚焦第一张（便于预览面板立刻显示）
-      const focused = get().focusedId;
-      if (focused && !list.some((a) => a.id === focused)) {
-        set({ focusedId: list[0]?.id ?? null });
-      } else if (!focused && list.length > 0) {
-        set({ focusedId: list[0].id });
+      // 收敛 selectedIds：把已被删除/筛掉的 id 剔除，保持选择集合始终是当前列表的子集
+      const validIds = new Set(list.map((a) => a.id));
+      const prevSelected = get().selectedIds;
+      let nextSelected = prevSelected;
+      if (prevSelected.size > 0) {
+        const filtered = new Set<number>();
+        for (const id of prevSelected) {
+          if (validIds.has(id)) filtered.add(id);
+        }
+        if (filtered.size !== prevSelected.size) nextSelected = filtered;
       }
+
+      // 收敛 focusedId：当前聚焦失效时，优先聚焦还在选中集合里的某一项（删除一批后能继续看下一张），
+      // 否则退回到列表首张；列表为空则置空。
+      const focused = get().focusedId;
+      let nextFocused: number | null = focused;
+      if (focused == null || !validIds.has(focused)) {
+        nextFocused =
+          nextSelected.size > 0
+            ? (nextSelected.values().next().value ?? null)
+            : (list[0]?.id ?? null);
+      }
+
+      set({
+        assets: list,
+        loading: false,
+        selectedIds: nextSelected,
+        focusedId: nextFocused,
+      });
     } catch (e) {
       console.error("refreshAssets failed", e);
       set({ loading: false });

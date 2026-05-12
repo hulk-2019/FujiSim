@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { FileImage, ImageIcon } from "lucide-react";
+import { Check, FileImage, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useStore } from "@/store";
 import { StarRating } from "./StarRating";
@@ -16,6 +16,8 @@ export function AssetGrid() {
   const selectRange = useStore((s) => s.selectRange);
   const focusAsset = useStore((s) => s.focusAsset);
   const refreshAssets = useStore((s) => s.refreshAssets);
+  const selectAll = useStore((s) => s.selectAll);
+  const clearSelection = useStore((s) => s.clearSelection);
 
   if (loading && assets.length === 0) {
     return (
@@ -33,10 +35,37 @@ export function AssetGrid() {
     );
   }
 
+  // 全选状态：完全选中=已勾；部分选中=半勾（hook to visual indicator）；都没选=未勾
+  const allSelected = selectedIds.size > 0 && selectedIds.size === assets.length;
+  const partiallySelected = selectedIds.size > 0 && !allSelected;
+
   return (
     <div className="w-full h-full flex flex-col bg-transparent">
       <div className="border-b border-zinc-800/60 px-4 py-2 flex items-center gap-2 text-xs text-zinc-400 bg-zinc-950/40">
-        <span>共 {assets.length} 项</span>
+        <button
+          onClick={() => (allSelected ? clearSelection() : selectAll())}
+          className={cn(
+            "flex items-center gap-1.5 px-1.5 py-0.5 rounded hover:bg-zinc-800/60",
+            (allSelected || partiallySelected) && "text-emerald-400",
+          )}
+          title={allSelected ? "取消全选" : "全选当前列表"}
+        >
+          <span
+            className={cn(
+              "w-3.5 h-3.5 rounded-sm border flex items-center justify-center flex-shrink-0",
+              allSelected
+                ? "bg-emerald-500 border-emerald-500"
+                : partiallySelected
+                  ? "bg-emerald-500/40 border-emerald-500"
+                  : "border-zinc-600",
+            )}
+          >
+            {allSelected && <Check size={10} className="text-black" strokeWidth={3} />}
+            {partiallySelected && <span className="w-1.5 h-0.5 bg-white rounded" />}
+          </span>
+          {allSelected ? "取消全选" : partiallySelected ? `已选 ${selectedIds.size}` : "全选"}
+        </button>
+        <span className="ml-auto">共 {assets.length} 项</span>
       </div>
       <Grid
         assets={assets}
@@ -47,6 +76,7 @@ export function AssetGrid() {
           else toggleSelect(asset.id, e.metaKey || e.ctrlKey);
         }}
         onFocus={(asset) => focusAsset(asset.id)}
+        onToggleCheckbox={(asset) => toggleSelect(asset.id, true)}
         onRatingChange={async (asset, v) => {
           await api.setRating(asset.id, v);
           await refreshAssets();
@@ -62,6 +92,7 @@ function Grid({
   focusedId,
   onSelect,
   onFocus,
+  onToggleCheckbox,
   onRatingChange,
 }: {
   assets: Asset[];
@@ -69,6 +100,7 @@ function Grid({
   focusedId: number | null;
   onSelect: (a: Asset, e: React.MouseEvent) => void;
   onFocus: (a: Asset) => void;
+  onToggleCheckbox: (a: Asset) => void;
   onRatingChange: (a: Asset, v: number) => void;
 }) {
   return (
@@ -84,6 +116,7 @@ function Grid({
               onSelect(a, e);
               onFocus(a);
             }}
+            onToggleCheckbox={() => onToggleCheckbox(a)}
             onRatingChange={(v) => onRatingChange(a, v)}
           />
         ))}
@@ -97,12 +130,14 @@ function Thumb({
   selected,
   focused,
   onClick,
+  onToggleCheckbox,
   onRatingChange,
 }: {
   asset: Asset;
   selected: boolean;
   focused: boolean;
   onClick: (e: React.MouseEvent) => void;
+  onToggleCheckbox: () => void;
   onRatingChange: (v: number) => void;
 }) {
   const src = useMemo(() => {
@@ -137,6 +172,23 @@ function Thumb({
             {asset.file_type || "RAW"}
           </div>
         )}
+        {/* 复选框：未选中时 hover 才显示，已选中时始终可见 */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleCheckbox();
+          }}
+          className={cn(
+            "absolute top-1.5 right-1.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-opacity",
+            selected
+              ? "bg-emerald-500 border-emerald-500 opacity-100"
+              : "bg-black/60 border-zinc-300 opacity-0 group-hover:opacity-100",
+          )}
+          title={selected ? "取消选中" : "加入选择"}
+        >
+          {selected && <Check size={12} className="text-black" strokeWidth={3} />}
+        </button>
         <span className="absolute top-1 left-1 text-[10px] px-1.5 py-0.5 rounded bg-black/60 text-zinc-200 border border-white/10">
           {asset.file_type ?? "?"}
         </span>

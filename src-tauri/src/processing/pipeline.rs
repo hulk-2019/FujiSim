@@ -72,14 +72,17 @@ impl Default for FilterSettings {
 /// 5. **Color Chrome** —— 高饱和区进一步加饱和（富士机内同名功能）；
 /// 6. **褪色** —— 给整图加一层灰底，模拟 Eterna / Classic Neg 的低对比感；
 /// 7. **黑白转换** —— 对 Acros / Monochrome 预设生效；
-/// 8. **3D LUT** —— 用户外挂 .cube；
+/// 8. **3D LUT** —— 用户外挂 .cube（由调用方预先加载并传入，避免重复 IO）；
 /// 9. **Clarity / Sharpness** —— 基于亮度局部模糊的非锐化遮罩；
 /// 10. **胶片颗粒** —— 最后合成，与亮度做掩膜（中灰最重）。
 ///
 /// 像素遍历使用 [`rayon::par_chunks_mut`] 并行，每个像素独立计算可线性扩展到多核。
+///
+/// `lut` 由调用方传入（可为 `None`），避免每次调用都从磁盘重新加载。
 pub fn process_image(
     src: &ImageBuffer<Rgb<u16>, Vec<u16>>,
     settings: &FilterSettings,
+    lut: Option<&Lut3D>,
 ) -> Result<ImageBuffer<Rgb<u16>, Vec<u16>>> {
     let (w, h) = src.dimensions();
     let profile = fuji::lookup(&settings.base_simulation);
@@ -99,12 +102,6 @@ pub fn process_image(
         "Weak" => 0.15,
         "Strong" => 0.30,
         _ => 0.0,
-    };
-
-    // 仅当用户给了非空 LUT 路径时才加载，避免每次预览都触发空字符串解析
-    let lut = match &settings.lut_file_path {
-        Some(p) if !p.as_os_str().is_empty() => Some(Lut3D::load_cube(p)?),
-        _ => None,
     };
 
     // 主缓冲区：连续 RGB 浮点，便于 par_chunks_mut(3) 一次处理一个像素
