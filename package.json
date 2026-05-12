@@ -9,9 +9,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "tauri": "PATH=\"$HOME/.cargo/bin:$PATH\" tauri",
-    "build:mac": "rm -rf src-tauri/target/universal-apple-darwin/release/bundle && PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --target universal-apple-darwin",
-    "build:mac-arm": "rm -rf src-tauri/target/aarch64-apple-darwin/release/bundle && PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --target aarch64-apple-darwin",
-    "build:mac-x64": "rm -rf src-tauri/target/x86_64-apple-darwin/release/bundle && PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --target x86_64-apple-darwin",
+    "build:mac": "rm -rf src-tauri/target/universal-apple-darwin/release/bundle && PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --target universal-apple-darwin --bundles dmg",
+    "build:mac-arm": "rm -rf src-tauri/target/aarch64-apple-darwin/release/bundle && PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --target aarch64-apple-darwin --bundles dmg",
+    "build:mac-x64": "rm -rf src-tauri/target/x86_64-apple-darwin/release/bundle && PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --target x86_64-apple-darwin --bundles dmg",
     "build:win": "rm -rf src-tauri/target/x86_64-pc-windows-msvc/release/bundle && PATH=\"$HOME/.cargo/bin:$PATH\" tauri build --target x86_64-pc-windows-msvc"
   },
   "dependencies": {
@@ -51,6 +51,5 @@
   "engines": {
     "node": ">=22.0.0",
     "pnpm": ">=10.0.0"
-  },
-  "packageManager": "pnpm@10.28.1+sha512.7d7dbbca9e99447b7c3bf7a73286afaaf6be99251eb9498baefa7d406892f67b879adb3a1d7e687fc4ccc1a388c7175fbaae567a26ab44d1067b54fcb0d6a316"
+  }
 }
