@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?logo=tailwind-css&logoColor=white)](#)
 [![SQLite](https://img.shields.io/badge/SQLite-DB-003B57?logo=sqlite&logoColor=white)](#)
 
-A cross-platform desktop application based on **Tauri 2 + Rust + React 18 + TypeScript + Tailwind + SQLite**, implementing asset management, Fujifilm simulations, batch export, and other features described in the PRD.
+A cross-platform desktop application based on **Tauri 2 + Rust + React 18 + TypeScript + Tailwind + SQLite**, implementing asset management, Fujifilm simulations, batch export, and other features.
 
 ![FujiSim Preview](./public/image.png)
 
@@ -80,7 +80,8 @@ FujiSim is built with **Tauri 2** (Rust backend + React 18 frontend), keeping th
 ## 🏗️ Engineering Architecture
 
 ```text
-├── docs/                          # PRD requirement documents and technical architecture design
+├── docs/                          # README_zh.md
+├── public/                        # images
 ├── src/                           # React Frontend
 │   ├── components/                # Business UI components
 │   │   ├── ui/                    # Base component library (shadcn/ui style)

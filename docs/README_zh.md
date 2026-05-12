@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?logo=tailwind-css&logoColor=white)](#)
 [![SQLite](https://img.shields.io/badge/SQLite-DB-003B57?logo=sqlite&logoColor=white)](#)
 
-基于 **Tauri 2 + Rust + React 18 + TypeScript + Tailwind + SQLite** 的跨平台桌面应用，实现 PRD 文档中描述的资产管理、富士胶片模拟、批量导出等功能。
+基于 **Tauri 2 + Rust + React 18 + TypeScript + Tailwind + SQLite** 的跨平台桌面应用，实现资产管理、富士胶片模拟、批量导出等功能。
 
 ![FujiSim 预览图](../public/image.png)
 
@@ -66,7 +66,8 @@
 ## 🏗️ 工程架构
 
 ```text
-├── docs/                          # PRD 需求文档及技术架构设计
+├── docs/                          # README_zh.md
+├── public/                        # images
 ├── src/                           # React 前端
 │   ├── components/                # 业务 UI 组件
 │   │   ├── ui/                    # 基础组件库 (shadcn/ui 风格)
