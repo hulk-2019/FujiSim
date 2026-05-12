@@ -142,20 +142,6 @@ export type Destination =
   | { kind: "subfolder"; name: string }
   | { kind: "path"; path: string };
 
-export type WatermarkPosition =
-  | "top_left"
-  | "top_right"
-  | "bottom_left"
-  | "bottom_right"
-  | "center";
-
-export type Watermark = {
-  text: string;
-  position: WatermarkPosition;
-  opacity: number;
-  size: number;
-};
-
 /** 完整导出设置，与 Rust 端 `ExportSettings` 一一对应 */
 export type ExportSettings = {
   format: ExportFormat;
@@ -163,7 +149,6 @@ export type ExportSettings = {
   destination: Destination;
   resize: ResizeSpec | null;
   strip_gps: boolean;
-  watermark: Watermark | null;
   filename_template: string | null;
 };
 

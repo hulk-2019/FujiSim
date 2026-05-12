@@ -66,7 +66,6 @@ FujiSim is built with **Tauri 2** (Rust backend + React 18 frontend), keeping th
 - **Multi-Format Support**: Export as JPEG (adjustable quality), PNG, TIFF, WebP.
 - **Export Management**: Choose to export to a subfolder of the original directory or a global custom path.
 - **Flexible Scaling**: Supports keeping original size, scaling proportionally by long edge, or scaling by percentage.
-- **Digital Watermark**: Text watermark (supports custom position, font size, opacity, automatically loads system fonts).
 - **Real-time Tracking**: Real-time export progress pushed to the frontend UI via Tauri Events.
 
 ### 🧹 F5 Data & Lifecycle Hygiene
@@ -207,7 +206,6 @@ The backend `src-tauri/src/processing/raw.rs` has already reserved the `decode_r
 
 - RAW decoding is not yet officially enabled (development postponed according to MVP requirement priorities).
 - The feature to write complete Exif information back to new files is not implemented (currently only provides a "Remove GPS" switch in the UI).
-- Watermark functionality depends on system fonts (macOS will automatically load from `/System/Library/Fonts/Helvetica.ttc`, skipped if not found).
 - Multi-channel export of 16-bit TIFF format is currently degraded to 8-bit (but the color engine pipeline in memory still maintains 16-bit processing throughout).
 
 ---
